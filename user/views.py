@@ -2,11 +2,15 @@ from django.contrib.auth import logout
 from rest_framework import generics, status
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from user.serializers import UserRegisterSerializer, LoginSerializer
+from user.serializers import (
+    UserRegisterSerializer,
+    LoginSerializer,
+    ChangePasswordSerializer,
+)
 
 
 class UserRegisterView(generics.CreateAPIView):
@@ -37,3 +41,11 @@ class LogoutView(APIView):
             {"message": "You successfully logged out"},
             status=status.HTTP_200_OK
         )
+
+
+class UserChangePasswordView(generics.UpdateAPIView):
+    serializer_class = ChangePasswordSerializer
+    permission_classes = (IsAuthenticated,)
+
+    def get_object(self):
+        return self.request.user
