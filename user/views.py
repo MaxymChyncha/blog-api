@@ -10,6 +10,8 @@ from user.serializers import (
     UserRegisterSerializer,
     LoginSerializer,
     ChangePasswordSerializer,
+    ResetPasswordSerializer,
+    ResetPasswordConfirmSerializer,
 )
 
 
@@ -49,3 +51,23 @@ class UserChangePasswordView(generics.UpdateAPIView):
 
     def get_object(self):
         return self.request.user
+
+
+class PasswordResetView(generics.CreateAPIView):
+    serializer_class = ResetPasswordSerializer
+    permission_classes = (AllowAny,)
+
+
+class PasswordResetConfirmView(generics.CreateAPIView):
+    serializer_class = ResetPasswordConfirmSerializer
+    permission_classes = (AllowAny,)
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context.update(
+            {
+                "uid": self.kwargs["uid"],
+                "token": self.kwargs["token"],
+            }
+        )
+        return context
