@@ -11,7 +11,7 @@ from user.managers import CustomUserManager
 
 def avatar_image_path(instance: "User", filename: str) -> pathlib.Path:
     filename = (
-            f"{slugify(instance.email)}-{uuid.uuid4()}" + pathlib.Path(filename).suffix
+        f"{slugify(instance.email)}-{uuid.uuid4()}" + pathlib.Path(filename).suffix
     )
     return pathlib.Path("uploads/avatars/") / pathlib.Path(filename)
 
