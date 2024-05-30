@@ -37,6 +37,7 @@ class UserRegisterSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data.pop("password_2")
+
         return User.objects.create_user(**validated_data)
 
 
@@ -44,13 +45,13 @@ class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
 
-    def validate(self, data):
-        email = data.get("email")
-        password = data.get("password")
+    def validate(self, attrs):
+        email = attrs.get("email")
+        password = attrs.get("password")
 
         if user := authenticate(email=email, password=password):
-            data["user"] = user
-            return data
+            attrs["user"] = user
+            return attrs
         raise serializers.ValidationError("Your Email or password is incorrect.")
 
 
@@ -67,6 +68,7 @@ class ChangePasswordSerializer(serializers.Serializer):
         user = self.context["request"].user
         if not user.check_password(value):
             raise serializers.ValidationError("Old password is not correct.")
+
         return value
 
     def validate(self, attrs):
@@ -74,6 +76,7 @@ class ChangePasswordSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 {"new_password": "New password fields didn't match."}
             )
+
         return attrs
 
     def save(self, **kwargs):
@@ -88,13 +91,14 @@ class ResetPasswordSerializer(serializers.Serializer):
 
     def validate_email(self, value):
         try:
-            get_user_model().objects.get(email=value)
-        except get_user_model().DoesNotExist:
+            User.objects.get(email=value)
+        except User.DoesNotExist:
             raise serializers.ValidationError("User with this email does not exist.")
+
         return value
 
     def save(self):
-        user = get_user_model().objects.get(email=self.validated_data["email"])
+        user = User.objects.get(email=self.validated_data["email"])
         send_reset_password_email(user=user)
 
 
@@ -108,8 +112,8 @@ class ResetPasswordConfirmSerializer(serializers.Serializer):
 
         try:
             uid = force_str(urlsafe_base64_decode(self.context.get("uid")))
-            user = get_user_model().objects.get(pk=uid)
-        except (TypeError, ValueError, get_user_model().DoesNotExist):
+            user = User.objects.get(pk=uid)
+        except (TypeError, ValueError, User.DoesNotExist):
             raise serializers.ValidationError("Invalid token or user ID")
         if not default_token_generator.check_token(user, self.context.get("token")):
             raise serializers.ValidationError("Invalid token or user ID")
@@ -118,6 +122,24 @@ class ResetPasswordConfirmSerializer(serializers.Serializer):
 
     def save(self):
         uid = force_str(urlsafe_base64_decode(self.context.get("uid")))
-        user = get_user_model().objects.get(pk=uid)
+        user = User.objects.get(pk=uid)
         user.set_password(self.validated_data["new_password"])
         user.save()
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = get_user_model()
+        fields = ["username", "email", "avatar"]
+
+    def update(self, instance, validated_data):
+        instance.username = validated_data.get("username", instance.username)
+        instance.email = validated_data.get("email", instance.email)
+
+        if "avatar" in validated_data:
+            instance.avatar = validated_data["avatar"]
+
+        instance.save()
+
+        return instance
