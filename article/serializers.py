@@ -4,6 +4,12 @@ from article.models import Article
 
 
 class ArticleSerializer(serializers.ModelSerializer):
+    """
+    Serializer for the Article model.
+
+    This serializer handles the serialization and deserialization of
+    Article instances.
+    """
     class Meta:
         model = Article
         fields = ["id", "title", "content", "publication_date", "author"]

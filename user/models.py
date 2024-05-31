@@ -17,6 +17,12 @@ def avatar_image_path(instance: "User", filename: str) -> pathlib.Path:
 
 
 class User(AbstractUser):
+    """
+    Custom user model.
+
+    This model extends the AbstractUser class to include email as the
+    unique identifier for authentication.
+    """
     username = models.CharField(max_length=150, unique=True, blank=True, null=True)
     email = models.EmailField(_("email address"), unique=True)
     avatar = models.ImageField(upload_to=avatar_image_path, blank=True, null=True)
