@@ -11,10 +11,28 @@ services:
       - my_media:/app/files/media
     command: >
       sh -c "python manage.py wait_for_db &&
+             python manage.py makemigrations &&
              python manage.py migrate &&
              python manage.py runserver 0.0.0.0:8000"
     depends_on:
       - db
+    networks:
+      - backend
+
+  telegram_bot:
+    build:
+      context: .
+    env_file:
+      - .env
+    volumes:
+      - ./:/app
+    command: >
+      sh -c "python -m telegram"
+    depends_on:
+      - blog
+      - db
+    networks:
+      - backend
 
   db:
     image: postgres:16-alpine3.20
@@ -22,9 +40,15 @@ services:
     env_file:
       - .env
     ports:
-      - "5433:5432"
+      - "5434:5432"
     volumes:
       - my_db:$PGDATA
+    networks:
+      - backend
+
+networks:
+  backend:
+    driver: bridge
 
 volumes:
   my_db:
