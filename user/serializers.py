@@ -226,17 +226,18 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = get_user_model()
-        fields = ["username", "email", "avatar"]
+        fields = ["username", "email", "avatar", "telegram_id"]
 
     def update(self, instance, validated_data):
         """
         Update the user profile.
 
-        Updates the username, email, and avatar fields of the user
+        Updates the username, email, telegram id and avatar fields of the user
         instance with the validated data.
         """
         instance.username = validated_data.get("username", instance.username)
         instance.email = validated_data.get("email", instance.email)
+        instance.telegram_id = validated_data.get("telegram_id", instance.telegram_id)
 
         if "avatar" in validated_data:
             instance.avatar = validated_data["avatar"]
