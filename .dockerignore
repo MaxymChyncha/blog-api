@@ -10,3 +10,4 @@ venv/
 README.md
 Dockerfile
 docker-compose.yaml
+/parser
