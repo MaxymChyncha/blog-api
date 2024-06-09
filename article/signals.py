@@ -21,7 +21,7 @@ def send_telegram_notification(sender, instance, created, **kwargs):
     """
     if created:
         users_with_telegram_id = (
-            User.objects.filter(telegram_id__isnull=False).exclude(telegram_id="")
+            User.objects.exclude(telegram_id=None)
         )
 
         for user in users_with_telegram_id:

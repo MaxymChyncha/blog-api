@@ -31,6 +31,6 @@ class ArticleViewSet(viewsets.ModelViewSet):
 
         This custom action returns the most recently created article.
         """
-        latest_article = self.queryset.order_by("-publication_date").first()
+        latest_article = self.get_queryset().order_by("-publication_date").first()
         serializer = self.get_serializer(latest_article)
         return Response(serializer.data)
