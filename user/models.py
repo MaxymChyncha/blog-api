@@ -1,8 +1,10 @@
 import pathlib
 import uuid
+from datetime import datetime
 
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.utils import timezone
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
 
@@ -38,7 +40,7 @@ class User(AbstractUser):
     username = models.CharField(max_length=63, unique=True, blank=True, null=True)
     email = models.EmailField(_("email address"), unique=True)
     avatar = models.ImageField(upload_to=avatar_image_path, blank=True, null=True)
-    telegram_id = models.CharField(max_length=256, blank=True, null=True)
+    telegram_id = models.BigIntegerField(blank=True, null=True)
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
@@ -47,3 +49,30 @@ class User(AbstractUser):
 
     def __str__(self) -> str:
         return self.email
+
+
+class PasswordResetToken(models.Model):
+    """
+    Model to store password reset tokens for users.
+
+    This model stores the password reset tokens generated for users,
+    along with the expiration time of each token. It ensures that
+    tokens are unique and can be validated to check if they are still
+    valid based on their expiration time.
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    token = models.CharField(max_length=255, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+
+    def is_valid(self):
+        """
+        Check if the token is still valid.
+
+        Returns:
+            bool: True if the token is still valid, False otherwise.
+        """
+        return timezone.now() < self.expires_at
+
+    def __str__(self) -> str:
+        return f"{self.user} token. Expires at {self.expires_at}"
