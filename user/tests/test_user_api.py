@@ -7,11 +7,13 @@ from django.core import mail
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
-from django.utils.encoding import force_bytes
-from django.utils.http import urlsafe_base64_encode
+from django.utils import timezone
+from django.utils.http import urlencode
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient
+
+from user.models import PasswordResetToken
 
 User = get_user_model()
 REGISTER_USER_URL = reverse("user:register")
@@ -22,17 +24,23 @@ RESET_PASSWORD_URL = reverse("user:password_reset")
 PROFILE_USER_URL = reverse("user:profile")
 
 
-def get_reset_password_confirm_url(uid: str, token: str) -> str:
+def get_reset_password_confirm_url(token: str) -> str:
     """
     Generate the URL for resetting the password.
 
     Returns the URL for the password reset confirmation view with
-    the provided user ID (uid) and token.
+    the provided token as a query parameter.
+
+    Args:
+        token (str): The password reset token.
+
+    Returns:
+        str: The URL for the password reset confirmation view.
     """
-    return reverse(
-        "user:password_reset_confirm",
-        kwargs={"uid": uid, "token": token}
-    )
+    reset_password_url = reverse("user:password_reset_confirm")
+    query_params = urlencode({"token": token})
+
+    return f"{reset_password_url}?{query_params}"
 
 
 def create_user(**params) -> User:
@@ -43,6 +51,21 @@ def create_user(**params) -> User:
     the user instance.
     """
     return User.objects.create_user(**params)
+
+
+def create_password_reset_token(user: User) -> str:
+    """
+    Create a password reset token for the specified user.
+
+    This function generates a password reset token for the given user,
+    stores it in the PasswordResetToken model with an expiration time of 1 hour,
+    and returns the generated token.
+    """
+    token = default_token_generator.make_token(user)
+    expiration_time = timezone.now() + timezone.timedelta(hours=1)
+    PasswordResetToken.objects.create(user=user, token=token, expires_at=expiration_time)
+
+    return token
 
 
 class PublicUserAPITest(TestCase):
@@ -215,10 +238,9 @@ class PublicUserAPITest(TestCase):
         response status code is HTTP 201 CREATED.
         """
         user = create_user(**self.user_data)
-        uid = urlsafe_base64_encode(force_bytes(user.pk))
-        token = default_token_generator.make_token(user)
+        token = create_password_reset_token(user)
 
-        url = get_reset_password_confirm_url(uid=uid, token=token)
+        url = get_reset_password_confirm_url(token=token)
         new_password = "newpass1234"
         data = {
             "new_password": new_password,
