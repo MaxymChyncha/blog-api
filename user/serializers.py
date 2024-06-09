@@ -1,11 +1,9 @@
 from django.contrib.auth import get_user_model, authenticate
 from django.contrib.auth.password_validation import validate_password
-from django.contrib.auth.tokens import default_token_generator
-from django.utils.encoding import force_str
-from django.utils.http import urlsafe_base64_decode
 from rest_framework import serializers
 
 from user.helpers import send_reset_password_email
+from user.models import PasswordResetToken
 
 User = get_user_model()
 
@@ -177,7 +175,10 @@ class ResetPasswordConfirmSerializer(serializers.Serializer):
     Serializer for confirming a password reset.
 
     This serializer handles the validation of the new passwords and
-    verifies the password reset token and user ID.
+    verifies the password reset token. It ensures that the new password
+    and confirmation password match and verifies the validity of the
+    token. If the token is invalid or expired, or if the passwords do not
+    match, a ValidationError is raised.
     """
     new_password = serializers.CharField(write_only=True)
     new_password_2 = serializers.CharField(write_only=True)
@@ -187,33 +188,42 @@ class ResetPasswordConfirmSerializer(serializers.Serializer):
         Validate the new passwords and token.
 
         Ensures that the new password and confirmation password match.
-        Verifies the password reset token and user ID. Raises a
-        ValidationError if the passwords do not match or if the token
-        or user ID is invalid.
+        Verifies the password reset token. Raises a ValidationError if
+        the passwords do not match, or if the token is invalid or expired.
         """
+        if not (token := self.context.get("token")):
+            raise serializers.ValidationError("Token is required")
+
+        try:
+            reset_token = PasswordResetToken.objects.get(token=token)
+        except PasswordResetToken.DoesNotExist:
+            raise serializers.ValidationError("Invalid or expired token")
+
+        if not reset_token.is_valid():
+            raise serializers.ValidationError("Invalid or expired token")
+
         if attrs["new_password"] != attrs["new_password_2"]:
             raise serializers.ValidationError("Password fields didn't match.")
 
-        try:
-            uid = force_str(urlsafe_base64_decode(self.context.get("uid")))
-            user = User.objects.get(pk=uid)
-        except (TypeError, ValueError, User.DoesNotExist):
-            raise serializers.ValidationError("Invalid token or user ID")
-        if not default_token_generator.check_token(user, self.context.get("token")):
-            raise serializers.ValidationError("Invalid token or user ID")
+        attrs["user"] = reset_token.user
+        attrs["reset_token"] = reset_token
 
         return attrs
 
-    def save(self):
+    def save(self, **kwargs):
         """
-        Save the new password.
+        Save the new password for the user and delete the used token.
 
-        Sets the new password for the user and saves the user.
+        Sets the new password for the user and deletes the password reset
+        token from the database.
         """
-        uid = force_str(urlsafe_base64_decode(self.context.get("uid")))
-        user = User.objects.get(pk=uid)
-        user.set_password(self.validated_data["new_password"])
+        user = self.validated_data["user"]
+        new_password = self.validated_data["new_password"]
+        user.set_password(new_password)
         user.save()
+
+        reset_token = self.validated_data["reset_token"]
+        reset_token.delete()
 
 
 class UserProfileSerializer(serializers.ModelSerializer):

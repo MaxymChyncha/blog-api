@@ -127,12 +127,9 @@ class PasswordResetConfirmView(generics.CreateAPIView):
         confirmation process.
         """
         context = super().get_serializer_context()
-        context.update(
-            {
-                "uid": self.kwargs["uid"],
-                "token": self.kwargs["token"],
-            }
-        )
+        token = self.request.query_params.get("token")
+        context.update({"token": token})
+
         return context
 
 
